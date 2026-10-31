@@ -1,6 +1,27 @@
 # Evalora
 
-Evalora grades student assignments against a teacher's rubric using an LLM, and gives feedback that points to the student's own words. Every score comes with a quote from the submission, and the app checks that the quote really exists before showing it as verified.
+Evalora grades student assignments against a teacher's rubric using Google's Gemini model. Every score comes with a quote from the student's own work, and the app checks that the quote really exists before showing it as verified.
+
+## Live demo
+
+**Website:** https://evalora-d73m.onrender.com/
+
+
+Your browser asks for these when the site opens.
+
+- The site runs on Render's free plan. After 15 minutes without visitors it goes to sleep, and the next visit takes about a minute to load. It is starting up, not broken.
+- Batches graded earlier may be gone, because the free plan's storage is cleared whenever the site sleeps or restarts.
+- Grading uses Gemini's free tier, where Google may use submitted content to improve its products. Use the sample essays or made-up text, not real student work.
+
+## Try it in two minutes
+
+1. Open the website and sign in.
+2. On **Build the rubric**, click **Use sample**, then **Continue to upload**.
+3. Download the five essays in [`samples/essays`](samples/essays): three TXT, one DOCX and one PDF. Drop them into the upload box and click **Upload 5 files**.
+4. Check the student names, then click **Start grading 5 students**.
+5. Watch the scores arrive. Open a student to see each criterion's quote, reasoning, strength and improvement, or export the whole class as CSV.
+
+`kabir_singh.txt` ends with a note telling the grader to ignore the rubric and award full marks. It is there to test whether the grader follows the rubric instead.
 
 ## Features
 
@@ -13,9 +34,27 @@ Evalora grades student assignments against a teacher's rubric using an LLM, and 
 - Export the class as CSV, or download a report per student
 - Grading continues on the server if you close the tab, and resumes after a restart
 
-## Quick start
+## How grading works
 
-You need Python 3.10 or newer. Node.js is not needed to run the app, because the built frontend is included.
+1. Text is extracted from each file. Unreadable files are listed with a reason and marked failed instead of stopping the batch.
+2. Each submission is sent to Gemini once, with the rubric and the submission clearly separated. The model is told to treat the submission as work to grade and to ignore any instructions inside it.
+3. For each criterion, the model quotes evidence first, then writes its reasoning, then gives a score.
+4. Python, not the model, clamps each score to the criterion's range, rounds to half points and adds up the total.
+5. Each quote is searched for in the submission, ignoring spacing, case and curly quotes. Quotes that can't be found are flagged for the teacher.
+6. Rate limits, timeouts and malformed responses are retried with increasing waits. Problems that retrying can't fix, like an invalid key, fail straight away with Gemini's own message.
+
+At most two students are graded at a time, which keeps a batch inside the free tier's per-minute limits.
+
+## Built with
+
+- **Backend:** Python, FastAPI, Pydantic, Google Gen AI SDK (Gemini Flash), PyMuPDF and python-docx
+- **Frontend:** React 19, TypeScript, Vite
+- **Storage:** JSON files on disk, written atomically
+- **Hosting:** Docker container on Render's free plan
+
+## Run it locally
+
+You need Python 3.10 or newer. Node.js is not needed, because the built frontend is included.
 
 ```bash
 python -m venv .venv
@@ -28,7 +67,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Copy `.env.example` to `.env` and paste in a Gemini API key. You can get a free key from [Google AI Studio](https://aistudio.google.com/apikey).
+Copy `.env.example` to `.env` and paste in a Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey). Leave `EVALORA_PASSWORD` empty to skip the sign-in locally.
 
 ```bash
 uvicorn app.main:app --app-dir backend
@@ -36,28 +75,11 @@ uvicorn app.main:app --app-dir backend
 
 Open http://localhost:8000.
 
-### Try it without an API key
-
-Set `EVALORA_MOCK_GRADER=true` in `.env`. The mock grader returns made-up scores that still quote real sentences from each submission, so the full flow can be demonstrated offline.
-
-### Sample data
-
-`samples/` contains the sample rubric and five made-up essays of different quality in TXT, DOCX and PDF. One of them ends with an instruction asking the grader to ignore the rubric, which is useful for showing that the prompt holds up against it.
-
-## How grading works
-
-1. Text is extracted from each file. Unreadable files are listed with a reason and marked failed instead of stopping the batch.
-2. Each submission is sent to Gemini once, with the rubric and the submission clearly separated. The model is told to treat the submission as work to grade and to ignore any instructions inside it.
-3. For each criterion, the model quotes evidence first, then writes its reasoning, then gives a score.
-4. Python, not the model, clamps each score to the criterion's range, rounds to half points and adds up the total.
-5. Each quote is searched for in the submission, ignoring spacing, case and curly quotes. Quotes that can't be found are flagged for the teacher.
-6. Rate limits, timeouts and malformed responses are retried with increasing waits. Problems that retrying can't fix, like an invalid key, fail straight away with Gemini's own message.
-
-At most two students are graded at a time, which keeps a batch inside the free tier's per-minute limits.
+To try it without an API key, set `EVALORA_MOCK_GRADER=true` in `.env`. The mock grader returns made-up scores that still quote real sentences from each submission.
 
 ## Configuration
 
-Set these in `.env`.
+Set these in `.env` locally, or in Render's dashboard for the live site.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
@@ -82,7 +104,19 @@ data/
   runs/<run>/results/<student>.json
 ```
 
-`data/` is in `.gitignore` so student work never ends up on GitHub. On Gemini's free tier, Google may use submitted content to improve its products, so use sample or consented work rather than real student submissions.
+`data/` is in `.gitignore`, so student work never ends up on GitHub. On the live site this folder sits on Render's temporary disk.
+
+## Deployment
+
+The live demo runs as one Docker web service on Render, defined in `render.yaml`. `GEMINI_API_KEY` and `EVALORA_PASSWORD` are marked `sync: false`, so their values are entered in Render's dashboard and never stored in this repository.
+
+To deploy your own copy:
+
+1. Push this repository to your GitHub account.
+2. In Render, choose **New**, then **Blueprint**, and connect the repository.
+3. Enter a Gemini API key and a sign-in password when prompted, then click **Deploy Blueprint**.
+
+`/healthz` answers without sign-in so Render can check the service is up. Run a single instance only, because grading runs in the server's memory.
 
 ## Project structure
 
@@ -102,17 +136,6 @@ render.yaml    Render deployment settings (no secrets)
 frontend/src/  React + TypeScript app (built output in frontend/dist)
 samples/       sample rubric and essays
 ```
-
-## Deployment
-
-The repository deploys to [Render](https://render.com) as one Docker web service using `render.yaml`. Secrets are never stored in the repository: `GEMINI_API_KEY` and `EVALORA_PASSWORD` are marked `sync: false`, so Render asks for them once in its dashboard.
-
-1. Push the repository to GitHub. `.env` and `data/` are ignored by Git.
-2. In Render, choose **New**, then **Blueprint**, and connect the repository.
-3. Enter the Gemini API key and a sign-in password when prompted, then apply.
-4. Open the service URL and sign in as `teacher` with that password.
-
-On Render's free plan the service sleeps after 15 minutes without traffic and its disk is temporary, so saved batches disappear when it sleeps or restarts. `/healthz` answers without sign-in so Render can check the service is up.
 
 ## Development
 
@@ -135,6 +158,7 @@ npm run build    # updates frontend/dist, which the backend serves
 
 | Endpoint | Purpose |
 | --- | --- |
+| `GET /healthz` | Health check for the host, open without sign-in |
 | `GET /api/health` | Mode, model and whether a key is set |
 | `GET, POST /api/rubrics` | List or save rubrics |
 | `POST /api/runs` | Upload a rubric and files (multipart) |
@@ -146,13 +170,14 @@ npm run build    # updates frontend/dist, which the backend serves
 | `GET /api/runs/{id}/export.csv` | Class results as CSV |
 | `GET /api/runs/{id}/students/{sid}/report.md` | One student's report |
 
-Interactive API docs are at http://localhost:8000/docs while the server runs.
+Interactive API docs are at `/docs` while the server runs.
 
 ## Limitations
 
 - Scanned PDFs have no text layer and are not read. OCR is not included.
 - Grades are AI-assisted and should be reviewed by a teacher before being shared.
 - Submissions longer than 100,000 characters are cut and flagged.
+- The live demo forgets batches when it sleeps or restarts.
 
 ## Roadmap
 
