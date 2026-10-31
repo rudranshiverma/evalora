@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: evalora
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: EVALORA_PASSWORD
+        sync: false
+      - key: EVALORA_USERNAME
+        value: teacher
+      - key: EVALORA_MOCK_GRADER
+        value: "false"
+      - key: EVALORA_MAX_CONCURRENCY
+        value: "2"

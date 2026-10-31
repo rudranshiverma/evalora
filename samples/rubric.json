@@ -1,0 +1,31 @@
+{
+  "title": "Argumentative essay",
+  "assignment_prompt": "Write a 500-word argumentative essay on a current issue. Take a clear position and support it with evidence.",
+  "criteria": [
+    {
+      "name": "Thesis and argument",
+      "max_points": 10,
+      "description": "States a clear, arguable position early and develops it consistently through the essay."
+    },
+    {
+      "name": "Evidence and support",
+      "max_points": 10,
+      "description": "Backs each main claim with specific, relevant evidence and explains how it supports the argument."
+    },
+    {
+      "name": "Counterargument",
+      "max_points": 5,
+      "description": "Acknowledges at least one opposing view and responds to it convincingly."
+    },
+    {
+      "name": "Organisation",
+      "max_points": 5,
+      "description": "Paragraphs follow a logical order with clear topic sentences and transitions."
+    },
+    {
+      "name": "Language and mechanics",
+      "max_points": 5,
+      "description": "Clear, formal writing with few grammar, spelling or punctuation errors."
+    }
+  ]
+}

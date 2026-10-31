@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets
+.env
+
+# Runtime data: real student submissions and results never go to GitHub
+data/
+
+# Frontend dependencies (the built frontend in frontend/dist IS committed,
+# so the app runs with Python only)
+frontend/node_modules/
